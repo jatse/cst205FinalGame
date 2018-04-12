@@ -32,10 +32,6 @@ def main():
     An updateMap will be used for placing sprites.
     The hitMap image will be updated to reflect the location of game elements.
   """
-  #loading window and tutorial
-  nowLoadingMsg = "Please Wait ... Now Loading\n"
-  tutorialMsg = "Tutorial coming soon"
-  #thread.start_new_thread(showInformation, (nowLoadingMsg + tutorialMsg,))
 
   #create turtle renderer to output graphics
   renderOutput = makeWorld(800, 600)
@@ -43,10 +39,18 @@ def main():
   renderCoord.penUp()         #stop turtle pen trail
   renderCoord.hide()          #hide turtle icon
   
+  #loading screen
+  loadingScreen = makePicture("images/loading_screen.jpg")
+  moveTo(renderCoord, 0 , 0)    
+  drop(renderCoord, loadingScreen)  
+  
   #generate random map
   #map is actively 800 x 544 broken into 25 x 17 cells of 32 pixel width squares
   #map will be randomized for every game instance
-  unit = 32
+  gameMap = makeEmptyPicture(800, 600, black)    #gameMap is the initial game layout
+  updateMap = makeEmptyPicture(800, 600)         #updateMap is the rendered image for imposing sprites
+  hitMap = makeEmptyPicture(800, 600, white)     #hitMap is used for collision detections
+
   rockSpawnCount = 4                             #determines number of rocks spawned on map
   rockTile = makePicture("images/rock_tile.jpg")
   treeSpawnCount = 8                             #determines number of trees spawned on map
@@ -54,11 +58,7 @@ def main():
   spawnX = random.randrange(0, 778, 32)          #initial spawn point set at random
   spawnY = random.randrange(32, 512, 32)
   
-  gameMap = makeEmptyPicture(800, 600, black)    #gameMap is the initial game layout
-  updateMap = makeEmptyPicture(800, 600)         #updateMap is the rendered image for imposing sprites
-  hitMap = makeEmptyPicture(800, 600, white)     #hitMap is used for collision detections
-  
-  #add frame to hitMap
+  #initialize hitMap by framing active area
   for pixels in getPixels(hitMap):
     if getY(pixels) < 32 or getY(pixels) > 544:
       setColor(pixels, black)
@@ -67,10 +67,10 @@ def main():
     for y in range(32, 544, unit):
       tileNum = random.randint(1, 5)                                             #get random grass tile (5 different tiles)
       grassTile = makePicture("images/grass_tiles" + str(tileNum) + ".jpg")
-      pasteToMap(gameMap, grassTile, x, y)
+      pasteToMap(gameMap, grassTile, x, y)                                       #build base for gameMap
   #generate rock obstacles
   for i in range(rockSpawnCount):
-    while collisionCheck(hitMap, rockTile, spawnX, spawnY, black):               #loop until free space found
+    while collisionCheck(hitMap, rockTile, spawnX, spawnY, black):               #make sure obstacles do not overlap
       spawnX = random.randrange(0, 778, 32)
       spawnY = random.randrange(32, 512, 32)
     pasteToMap(gameMap, rockTile, spawnX, spawnY)                                #update gameMap
@@ -85,7 +85,7 @@ def main():
     
   #spawn player
   player = Player(random.randrange(0, 778, 32), random.randrange(32, 512, 32))   #creates Player object with random starting coordinates
-  while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #if player collide with obstacle, randomize until player does not collide
+  while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #make sure player does not start on obstacle
     player.x = random.randrange(0, 778, 32)
     player.y = random.randrange(32, 512, 32)  
   pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)          #add player to hitMap 
@@ -95,41 +95,41 @@ def main():
   #--- MAIN GAME LOOP ---
   while true:
     #- 1. render graphics  
-    pasteToMap(updateMap, player.sprite, player.x, player.y, white)                 #add player to updateMap    
+    pasteToMap(updateMap, player.sprite, player.x, player.y, white)                 #update player location on map   
     
     moveTo(renderCoord, 0 , 0)                                                      #move to render full screen image
     drop(renderCoord, updateMap)                                                    #output to screen
     #repaint(hitMap)                                                                 #DEBUG: show hit map
     
     #- 2. get user input
-    bgThread = threading.Thread(target = cloneMap, args = (gameMap,updateMap))               #preparing graphics for next loop (faster rendering)
+    bgThread = threading.Thread(target = cloneMap, args = (gameMap,updateMap))     #reset update map for next loop now. loop slow otherwise
     bgThread.start()
     while true:                                                                    #keep getting input until input matches valid commands
       userInput = requestString("What would you like to do?")
       userInput.strip().lower()
-      if userInput in ["u","d","l","r","up","down","left","right","s","stay"]:    
+      if userInput in ["n","s","e","w","north","south","east","west","r","rest"]:    
         break
         
     #- 3. execute player's turn
     #movement check. if move command in bounds and not collide with object, allow move.
     #encounter check. check if player collided with enemy or item.
     #update hitMap
-    if userInput in ["u", "up"]:
+    if userInput in ["n", "north"]:
       if player.y - 32 >= 32 and not collisionCheck(hitMap, player.sprite, player.x, player.y - 32, black):
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
-        player.y -= 32
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-    elif userInput in ["d", "down"]:
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)  #remove from hitMap
+        player.y -= 32                                                           #move
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)    #add back into hitMap
+    elif userInput in ["s", "south"]:
       if player.y + 32 <= 512 and not collisionCheck(hitMap, player.sprite, player.x, player.y + 32, black):
         pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
         player.y += 32
         pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-    elif userInput in ["l", "left"]:
+    elif userInput in ["w", "west"]:
       if player.x - 32 >= 0 and not collisionCheck(hitMap, player.sprite, player.x - 32, player.y, black): 
         pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
         player.x -= 32
         pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-    elif userInput in ["r", "right"]:
+    elif userInput in ["e", "east"]:
       if player.x + 32 <= 778 and not collisionCheck(hitMap, player.sprite, player.x + 32, player.y, black):
         pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
         player.x += 32
@@ -141,7 +141,7 @@ def main():
     #- 4. execute enemies' turn
     
     #- 5. execute game events
-    bgThread.join()   
+    bgThread.join()   #make sure updateMap is completely reset. otherwise artifacts may appear.
       
 #---------------------------      
 #----- OTHER FUNCTIONS -----
