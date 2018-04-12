@@ -15,10 +15,10 @@ setMediaFolder(currentDirectory)
 #----- PLAYER CLASS -----
 #------------------------
 class Player:
-  def __init__(self):
-    self.sprite = makePicture("images/player_sprite.jpg")
-    self.x = 0  
-    self.y = 0
+  def __init__(self, intX = 0, intY = 0):
+    self.sprite = makePicture("images/player_sprite.png")
+    self.x = intX  
+    self.y = intY
   
         
 #--------------------------
@@ -42,7 +42,6 @@ def main():
   renderCoord = makeTurtle(renderOutput)
   renderCoord.penUp()         #stop turtle pen trail
   renderCoord.hide()          #hide turtle icon
-  moveTo(renderCoord, 0 , 0)  #move to render full screen image
   
   #generate random map
   #map is actively 800 x 544 broken into 25 x 17 cells of 32 pixel width squares
@@ -84,23 +83,64 @@ def main():
     pasteToMap(gameMap, treeTile, spawnX, spawnY)
     pasteToMap(hitMap, makeEmptyPicture(32, 64, black), spawnX, spawnY)
     
-  #clone gameMap to updateMap
-  cloneMap(gameMap, updateMap)
-    
   #spawn player
-  player = Player()                                                              #creates Player object
-  while collisionCheck(hitMap, player.sprite, spawnX, spawnY, black):    
-    spawnX = random.randrange(0, 778, 32)
-    spawnY = random.randrange(32, 512, 32)
-  player.x = spawnX
-  player.y = spawnY                                                              #set player's starting coordinates
-  pasteToMap(updateMap, player.sprite, player.x, player.y, white)                #add sprite to update map    
+  player = Player(random.randrange(0, 778, 32), random.randrange(32, 512, 32))   #creates Player object with random starting coordinates
+  while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #if player collide with obstacle, randomize until player does not collide
+    player.x = random.randrange(0, 778, 32)
+    player.y = random.randrange(32, 512, 32)  
+  pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)          #add player to hitMap 
   
-  #render map
-  drop(renderCoord, updateMap)
-  #DEBUG: show hit map
-  #show(hitMap)
+  cloneMap(gameMap, updateMap)                                                   #clone gameMap to updateMap in preparation for sprites 
+  
+  #--- MAIN GAME LOOP ---
+  while true:
+    #- 1. render graphics  
+    pasteToMap(updateMap, player.sprite, player.x, player.y, white)                 #add player to updateMap    
+    
+    moveTo(renderCoord, 0 , 0)                                                      #move to render full screen image
+    drop(renderCoord, updateMap)                                                    #output to screen
+    #repaint(hitMap)                                                                 #DEBUG: show hit map
+    
+    #- 2. get user input
+    thread.start_new_thread(cloneMap, (gameMap,updateMap,))                        #preparing graphics for next loop (faster rendering)
+    while true:                                                                    #keep getting input until input matches valid commands
+      userInput = requestString("What would you like to do?")
+      userInput.strip().lower()
+      if userInput in ["u","d","l","r","up","down","left","right","s","stay"]:    
+        break
+        
+    #- 3. execute player's turn
+    #movement check. if move command in bounds and not collide with object, allow move.
+    #encounter check. check if player collided with enemy or item.
+    #update hitMap
+    if userInput in ["u", "up"]:
+      if player.y - 32 >= 32 and not collisionCheck(hitMap, player.sprite, player.x, player.y - 32, black):
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
+        player.y -= 32
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
+    elif userInput in ["d", "down"]:
+      if player.y + 32 <= 512 and not collisionCheck(hitMap, player.sprite, player.x, player.y + 32, black):
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
+        player.y += 32
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
+    elif userInput in ["l", "left"]:
+      if player.x - 32 >= 0 and not collisionCheck(hitMap, player.sprite, player.x - 32, player.y, black): 
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
+        player.x -= 32
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
+    elif userInput in ["r", "right"]:
+      if player.x + 32 <= 778 and not collisionCheck(hitMap, player.sprite, player.x + 32, player.y, black):
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
+        player.x += 32
+        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
       
+    #axe action
+    
+    
+    #- 4. execute enemies' turn
+    
+    #- 5. execute game events  
+    time.sleep(1)  
       
 #---------------------------      
 #----- OTHER FUNCTIONS -----
