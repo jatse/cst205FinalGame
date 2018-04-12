@@ -4,9 +4,9 @@
 #---------------------------------------------
 #----- MODULE IMPORT AND MEDIA DIRECTORY -----
 #---------------------------------------------
-import time    #imported for animations
-import random  #imported for random generation of game elements
-import thread  #imported for running concurrent events
+import time       #imported for animations
+import random     #imported for random generation of game elements
+import threading  #imported for running concurrent events
 currentDirectory = __file__[:-13] #removes this file's name from file path to get current directory
 setMediaFolder(currentDirectory)
 
@@ -14,9 +14,9 @@ setMediaFolder(currentDirectory)
 #------------------------
 #----- PLAYER CLASS -----
 #------------------------
-class Player:
+class Player(object):
   def __init__(self, intX = 0, intY = 0):
-    self.sprite = makePicture("images/player_sprite.png")
+    self.sprite = makePicture("images/player_sprite.jpg")
     self.x = intX  
     self.y = intY
   
@@ -35,7 +35,7 @@ def main():
   #loading window and tutorial
   nowLoadingMsg = "Please Wait ... Now Loading\n"
   tutorialMsg = "Tutorial coming soon"
-  thread.start_new_thread(showInformation, (nowLoadingMsg + tutorialMsg,))
+  #thread.start_new_thread(showInformation, (nowLoadingMsg + tutorialMsg,))
 
   #create turtle renderer to output graphics
   renderOutput = makeWorld(800, 600)
@@ -102,7 +102,8 @@ def main():
     #repaint(hitMap)                                                                 #DEBUG: show hit map
     
     #- 2. get user input
-    thread.start_new_thread(cloneMap, (gameMap,updateMap,))                        #preparing graphics for next loop (faster rendering)
+    bgThread = threading.Thread(target = cloneMap, args = (gameMap,updateMap))               #preparing graphics for next loop (faster rendering)
+    bgThread.start()
     while true:                                                                    #keep getting input until input matches valid commands
       userInput = requestString("What would you like to do?")
       userInput.strip().lower()
@@ -139,8 +140,8 @@ def main():
     
     #- 4. execute enemies' turn
     
-    #- 5. execute game events  
-    time.sleep(1)  
+    #- 5. execute game events
+    bgThread.join()   
       
 #---------------------------      
 #----- OTHER FUNCTIONS -----
