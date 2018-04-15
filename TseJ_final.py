@@ -230,9 +230,9 @@ def main():
   updateMap = makePicture("images/map-help.jpg") #the map to be displayed
   hitMap = makeEmptyPicture(800, 600, white)     #map used for collision detections
   
-  rockSpawnCount = 4                             #determines number of rocks spawned on map
+  rockSpawnCount = 6                             #determines number of rocks spawned on map
   rockTile = makePicture("images/rock_tile.jpg")
-  treeSpawnCount = 8                             #determines number of trees spawned on map
+  treeSpawnCount = 13                             #determines number of trees spawned on map
   treeTile = makePicture("images/tree_tile.jpg")
   
   #initialize hitMap by framing active area with obstacles
@@ -262,7 +262,7 @@ def main():
   enemies = []                                                        #holds enemy objects
   enemyCount = 0
   for i in range(3):
-    enemies.append(Bear())                                            #adds new wolf to enemy list
+    enemies.append(Wolf())                                            #adds new wolf to enemy list
     spawnRandomMoveable(updateMap, hitMap, enemies[i], blue, white)
     enemyCount += 1
     
@@ -430,8 +430,8 @@ def spawnRandom(updateMap, hitMap, tileImage, hitColor, chromaKey = 0):
   #initialize random coordinates
   spawnX = random.randrange(0, 800 - getWidth(tileImage), 32)
   spawnY = random.randrange(32, 512 - getHeight(tileImage), 32)
-  #if obstructed, randomize coordinates again
-  while not collisionCheck(hitMap, tileImage, spawnX, spawnY, white):
+  #if obstructed, randomize coordinates again. trees need full check for obstacles
+  while not collisionCheck(hitMap, tileImage, spawnX, spawnY, white) or collisionCheck(hitMap, tileImage, spawnX, spawnY, black):
     spawnX = random.randrange(0, 800 - getWidth(tileImage), 32)
     spawnY = random.randrange(32, 512 - getHeight(tileImage), 32)
   #paste tiles to maps
