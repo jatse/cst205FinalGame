@@ -22,10 +22,13 @@ class Sprite(object):
   
   #moves sprite
   def move(self, updateMap, hitMap, grassMap, xDelta, yDelta):
+    #remove sprite from map
     pasteToMap(hitMap, makeEmptyPicture(32, 32, white), self.x, self.y)
-    grassPatch(grassMap, updateMap, self.x, self.y) 
+    grassPatch(grassMap, updateMap, self.x, self.y)
+    #move coordinates 
     self.x += xDelta
     self.y += yDelta
+    #render new coordinates
     pasteToMap(hitMap, makeEmptyPicture(32, 32, self.color), self.x, self.y)
     pasteToMap(updateMap, self.sprite, self.x, self.y, white) 
   
@@ -39,7 +42,7 @@ class Sprite(object):
     #checks if cardinal directions are available
     if self.x - 32 > 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
       clearW = true
-    if self.x + 32 < 778 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
+    if self.x + 32 < 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
       clearE = true
     if self.y - 32 > 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
       clearN = true
@@ -88,7 +91,7 @@ class Player(Sprite):
       xDistance = self.x + (xDelta * (i + 1))
       yDistance = self.y + (yDelta * (i + 1))
       #if beyond bounds, stop throw.
-      if xDistance > 778 or xDistance < 0 or yDistance < 32 or yDistance > 512:
+      if xDistance > 768 or xDistance < 0 or yDistance < 32 or yDistance > 512:
         return enemyCount
       #if not an obstacle, paste axe in direction. farther with each loop.
       if not collisionCheck(hitMap, self.sprite, xDistance, yDistance, black):
@@ -137,7 +140,7 @@ class Wolf(Sprite):
     #checks if cardinal directions are available
     if self.x - 32 > 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
       clearW = true
-    if self.x + 32 < 778 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
+    if self.x + 32 < 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
       clearE = true
     if self.y - 32 > 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
       clearN = true
@@ -189,7 +192,7 @@ def main():
   #generate random map
   #map is actively 800 x 512 broken into 25 x 16 cells of 32 pixel width squares
   #map will be randomized at start of every game
-  grassMap = [[0] * 16]*25                       #underlying map of grass. grassMap[x][y]
+  grassMap = makeEmptyPicture(800, 600, black)   #underlying map of grass.
   updateMap = makePicture("images/map-help.jpg") #the map to be displayed
   hitMap = makeEmptyPicture(800, 600, white)     #map used for collision detections
   
@@ -197,7 +200,7 @@ def main():
   rockTile = makePicture("images/rock_tile.jpg")
   treeSpawnCount = 8                             #determines number of trees spawned on map
   treeTile = makePicture("images/tree_tile.jpg")
-  spawnX = random.randrange(0, 778, 32)          #initial spawn point set at random
+  spawnX = random.randrange(0, 768, 32)          #initial spawn point set at random
   spawnY = random.randrange(32, 512, 32)
   
   #initialize hitMap by framing active area with obstacles
@@ -206,31 +209,31 @@ def main():
       setColor(pixels, black)
       
   #generate grass tiles
-  for x in range(25):
-    for y in range(16):
-      tileNum = random.randint(1, 5)                                             #get random grass tile (5 different tiles)
-      grassTile = makePicture("images/grass_tiles" + str(tileNum) + ".jpg")
-      grassMap[x][y] = grassTile                                                 #store to 2D array
-      pasteToMap(updateMap, grassTile, x * 32, y * 32 + 32, chromaKey = 0)       #add to updateMap
+  for x in range(0, 800, 32):
+    for y in range(32, 544, 32):
+      tileNum = random.randint(1, 5)                                             #get random grass tile number (5 different tiles)
+      grassTile = makePicture("images/grass_tiles" + str(tileNum) + ".jpg")   
+      pasteToMap(grassMap, grassTile, x, y)                                      #build grassMap
+      pasteToMap(updateMap, grassTile, x, y)                                      #initialize update map
   #generate rock obstacles
   for i in range(rockSpawnCount):
     while collisionCheck(hitMap, rockTile, spawnX, spawnY, black):               #make sure obstacles do not overlap
-      spawnX = random.randrange(0, 778, 32)
+      spawnX = random.randrange(0, 768, 32)
       spawnY = random.randrange(32, 512, 32)
     pasteToMap(updateMap, rockTile, spawnX, spawnY)                              #add to updateMap
     pasteToMap(hitMap, makeEmptyPicture(32, 32, black), spawnX, spawnY)          #add to hitMap
   #generate tree obstacles
   for i in range(treeSpawnCount):
     while collisionCheck(hitMap, treeTile, spawnX, spawnY, black): 
-      spawnX = random.randrange(0, 778, 32)
+      spawnX = random.randrange(0, 768, 32)
       spawnY = random.randrange(32, 480, 32)
     pasteToMap(updateMap, treeTile, spawnX, spawnY)
     pasteToMap(hitMap, makeEmptyPicture(32, 64, black), spawnX, spawnY)
     
   #spawn player
-  player = Player(random.randrange(0, 778, 32), random.randrange(32, 512, 32))   #creates Player object with random starting coordinates
+  player = Player(random.randrange(0, 768, 32), random.randrange(32, 512, 32))   #creates Player object with random starting coordinates
   while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #make sure player does not start on obstacle
-    player.x = random.randrange(0, 778, 32)
+    player.x = random.randrange(0, 768, 32)
     player.y = random.randrange(32, 512, 32)
   player.move(updateMap, hitMap, grassMap, 0, 0)                                 #add player to maps
   
@@ -238,9 +241,9 @@ def main():
   enemies = []                                                                                                #holds enemy objects (max 10)
   enemyCount = 0
   for i in range(3):
-    enemies.append(Wolf(random.randrange(0, 778, 32), random.randrange(32, 512, 32)))                         #creates wolf object with random starting coordinates
+    enemies.append(Wolf(random.randrange(0, 768, 32), random.randrange(32, 512, 32)))                         #creates wolf object with random starting coordinates
     while not collisionCheck(hitMap, enemies[i].sprite, enemies[i].x, enemies[i].y, white):                   #make sure wolf is on empty space
-      enemies[i].x = random.randrange(0, 778, 32)
+      enemies[i].x = random.randrange(0, 768, 32)
       enemies[i].y = random.randrange(32, 512, 32)
     enemies[i].move(updateMap, hitMap, grassMap, 0, 0)                                                        #add wolf to map
     enemyCount += 1
@@ -277,21 +280,21 @@ def main():
     if userInput in ["n", "north"]:
       if player.y - 32 >= 32 and collisionCheck(hitMap, player.sprite, player.x, player.y - 32, white):
         player.move(updateMap, hitMap, grassMap, 0, -32)
-        successfulMove = true
+        successfulTurn = true
     elif userInput in ["s", "south"]:
       if player.y + 32 <= 512 and collisionCheck(hitMap, player.sprite, player.x, player.y + 32, white):
         player.move(updateMap, hitMap, grassMap, 0, 32)
-        successfulMove = true   
+        successfulTurn = true   
     elif userInput in ["w", "west"]:
       if player.x - 32 >= 0 and collisionCheck(hitMap, player.sprite, player.x - 32, player.y, white): 
         player.move(updateMap, hitMap, grassMap, -32, 0)
-        successfulMove = true    
+        successfulTurn = true    
     elif userInput in ["e", "east"]:
-      if player.x + 32 <= 778 and collisionCheck(hitMap, player.sprite, player.x + 32, player.y, white):
+      if player.x + 32 <= 768 and collisionCheck(hitMap, player.sprite, player.x + 32, player.y, white):
         player.move(updateMap, hitMap, grassMap, 32, 0)
-        successfulMove = true 
+        successfulTurn = true 
     elif userInput in ["r", "rest"]:
-        successfulMove = true   
+        successfulTurn = true   
         
     #axe action
     if userInput in ["a", "axe"] and player.axeCount > 0:
@@ -300,21 +303,21 @@ def main():
       throwDirection = requestString("Which way will you throw?")
       if throwDirection in ["n", "north"]:
         enemyCount = player.throwAxe(enemies, enemyCount, updateMap, hitMap, grassMap, 0, -32, renderCoord)
-        successfulMove = true 
+        successfulTurn = true 
       elif throwDirection in ["s", "south"]:
         enemyCount = player.throwAxe(enemies, enemyCount, updateMap, hitMap, grassMap, 0, 32, renderCoord)
-        successfulMove = true 
+        successfulTurn = true 
       elif throwDirection in ["w", "west"]:
         enemyCount = player.throwAxe(enemies, enemyCount, updateMap, hitMap, grassMap, -32, 0, renderCoord)
-        successfulMove = true 
+        successfulTurn = true 
       elif throwDirection in ["e", "east"]:
         enemyCount = player.throwAxe(enemies, enemyCount, updateMap, hitMap, grassMap, 32, 0, renderCoord)
-        successfulMove = true 
+        successfulTurn = true 
           
     #- 4. execute enemies' turn
-    if successfulMove:
+    if successfulTurn:
       for enemy in enemies:
-        if enemy.nameType == "wolf" and random.randint(0,4) > 0:             #wolves will wander 20% of the time
+        if enemy.nameType == "wolf" and random.randint(0,4) == 0:            #wolves will wander 20% of the time
           huntX, huntY = enemy.wander(player, hitMap)
         else:
           huntX, huntY = enemy.hunt(player, hitMap)                          #get where enemy should move
@@ -324,7 +327,7 @@ def main():
         break
     
     #- 5. execute game events
-    if successfulMove:
+    if successfulTurn:
       turnCount += 1
   
   #--- GAME OVER ---
@@ -356,17 +359,11 @@ def pasteToMap(map, tile, mapX, mapY, chromaKey = 0):        #chromakey is an op
 
 #covers area with appropriate grass tile from 2D array
 def grassPatch(grassMap, updateMap, x, y):
-  grassTile = grassMap[x / 32][(y - 32) / 32]
-  tileX = 0
-  tileY = 0
   for xLoc in range(x, x + 32):
     for yLoc in range(y, y + 32):
-      inputPixel = getPixel(grassTile, tileX, tileY)
+      inputPixel = getPixel(grassMap, xLoc, yLoc)
       outputPixel = getPixel(updateMap, xLoc, yLoc)
       setColor(outputPixel, getColor(inputPixel))
-      tileY += 1
-    tileX += 1
-    tileY = 0
   
 #Checks for target color at object sized location at point (objectX, objectY)
 #return boolean true if collision detected, otherwise false
@@ -384,13 +381,6 @@ def collisionCheck(hitMap, object, objectX, objectY, targetColor):
         return true
   return false
   
-#clones map to map
-def cloneMap(copyFromMap, copyToMap):
-  for x in range(0, 800):
-    for y in range(0, 544):
-      inputPixel = getPixel(copyFromMap, x, y)
-      outputPixel = getPixel(copyToMap, x, y)
-      setColor(outputPixel, getColor(inputPixel))
   
   
 #-------------------------  
