@@ -106,7 +106,7 @@ class Player(Sprite):
     #use axe
     self.axeCount -= 1
     currentAxeSprite = 1
-    
+    play(makeSound("audio/axe_throw.wav"))
     #throw up to 5 spaces
     for i in range(5):
       xDistance = self.x + (xDelta * (i + 1))
@@ -130,6 +130,10 @@ class Player(Sprite):
                 enemies[i].hp -= 1
                 #wipe enemy from maps if no hp
                 if enemies[i].hp == 0:
+                  if enemies[i].nameType == "wolf": 
+                    play(makeSound("audio/wolf_ko.wav"))
+                  else:
+                    play(makeSound("audio/bear_ko.wav"))
                   pasteToMap(hitMap, makeEmptyPicture(32, 32, white), xDistance, yDistance)
                   grassPatch(grassMap, updateMap, xDistance, yDistance)
                   drop(renderCoord, updateMap)
@@ -138,6 +142,7 @@ class Player(Sprite):
                   return enemyCount - 1;
                 #else enemy still has hp, no wipe but end throw
                 else:
+                  play(makeSound("audio/bear_hit.wav"))
                   return enemyCount
           else: #if no enemy was hit, remove axe
             grassPatch(grassMap, updateMap, xDistance, yDistance)
@@ -147,6 +152,7 @@ class Player(Sprite):
             currentAxeSprite = 1
           else:
             currentAxeSprite += 1
+          play(makeSound("audio/axe_fly.wav"))
       else:
         return enemyCount  #if obstacle encountered, end throw.
     
@@ -256,7 +262,7 @@ def main():
   enemies = []                                                        #holds enemy objects
   enemyCount = 0
   for i in range(3):
-    enemies.append(Wolf())                                            #adds new wolf to enemy list
+    enemies.append(Bear())                                            #adds new wolf to enemy list
     spawnRandomMoveable(updateMap, hitMap, enemies[i], blue, white)
     enemyCount += 1
     
@@ -356,11 +362,13 @@ def main():
           if enemyCount < 10: #maximum 10 enemies at a time
             enemies.append(Wolf())
             spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
+            play(makeSound("audio/wolf_spawn.wav"))
             enemyCount += 1 
         elif choice > 0: #normally 5% chance: spawn bear
           if enemyCount < 10: #maximum 10 enemies at a time
             enemies.append(Bear())  
             spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
+            play(makeSound("audio/bear_spawn.wav"))
             enemyCount += 1
       
       #increment turn
