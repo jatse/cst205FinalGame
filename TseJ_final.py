@@ -81,6 +81,27 @@ class Player(Sprite):
     self.color = red
     self.axeCount = 5
     
+  #overridden to allow item pickup
+  def move(self, updateMap, hitMap, grassMap, xDelta, yDelta, axesOnScreen):
+    #remove sprite from map
+    pasteToMap(hitMap, makeEmptyPicture(32, 32, white), self.x, self.y)
+    grassPatch(grassMap, updateMap, self.x, self.y)
+    #move coordinates 
+    self.x += xDelta
+    self.y += yDelta
+    #if axe there, pick it up
+    if collisionCheck(hitMap, self.sprite, self.x, self.y, green):
+      self.axeCount += 1
+      axesOnScreen -= 1
+    #if you walked into enemy, return for check for gameover
+    if collisionCheck(hitMap, self.sprite, self.x, self.y, blue):
+      return axesOnScreen
+    #render new coordinates
+    pasteToMap(hitMap, makeEmptyPicture(32, 32, self.color), self.x, self.y)
+    pasteToMap(updateMap, self.sprite, self.x, self.y, white) 
+    #return count of axes on screen
+    return axesOnScreen
+    
   def throwAxe(self, enemies, enemyCount, updateMap, hitMap, grassMap, xDelta, yDelta, renderCoord):
     #use axe
     self.axeCount -= 1
@@ -99,19 +120,25 @@ class Player(Sprite):
         if not collisionCheck(hitMap, self.sprite, xDistance, yDistance, green):
           pasteToMap(updateMap, makePicture("images/axe_sprite" + str(currentAxeSprite) + ".jpg"), xDistance, yDistance, white)
           drop(renderCoord, updateMap)
-          time.sleep(1)  #slow down for visible animation
+          time.sleep(.5)  #slow down for visible animation
           #check if enemy was hit
           if collisionCheck(hitMap, self.sprite, xDistance, yDistance, blue):
-            #if so, find enemy
+            #if so, find which enemy was hit
             for i in range(enemyCount):
               if enemies[i].x == xDistance and enemies[i].y == yDistance:
-                #wipe enemy from maps
-                pasteToMap(hitMap, makeEmptyPicture(32, 32, white), xDistance, yDistance)
-                grassPatch(grassMap, updateMap, xDistance, yDistance)
-                drop(renderCoord, updateMap)
-                #remove from enemy list, update count variable, and stop throw
-                del enemies[i]
-                return enemyCount - 1;
+                #decrease their hp by 1
+                enemies[i].hp -= 1
+                #wipe enemy from maps if no hp
+                if enemies[i].hp == 0:
+                  pasteToMap(hitMap, makeEmptyPicture(32, 32, white), xDistance, yDistance)
+                  grassPatch(grassMap, updateMap, xDistance, yDistance)
+                  drop(renderCoord, updateMap)
+                  #remove from enemy list, update count variable, and stop throw
+                  del enemies[i]
+                  return enemyCount - 1;
+                #else enemy still has hp, no wipe but end throw
+                else:
+                  return enemyCount
           else: #if no enemy was hit, remove axe
             grassPatch(grassMap, updateMap, xDistance, yDistance)
             drop(renderCoord, updateMap)
@@ -129,6 +156,7 @@ class Wolf(Sprite):
     self.sprite = makePicture("images/wolf_sprite.jpg")
     self.nameType = "wolf"
     self.color = blue
+    self.hp = 1
   
   #wolf will wander 10% of the time   
   def wander(self, prey, hitMap):
@@ -169,7 +197,7 @@ class Bear(Sprite):
     self.sprite = makePicture("images/bear_sprite.jpg")
     self.nameType = "bear"
     self.color = blue
-    self.hp = 2
+    self.hp = 3
         
 #--------------------------
 #----- MAIN GAME LOOP -----
@@ -200,8 +228,6 @@ def main():
   rockTile = makePicture("images/rock_tile.jpg")
   treeSpawnCount = 8                             #determines number of trees spawned on map
   treeTile = makePicture("images/tree_tile.jpg")
-  spawnX = random.randrange(0, 768, 32)          #initial spawn point set at random
-  spawnY = random.randrange(32, 512, 32)
   
   #initialize hitMap by framing active area with obstacles
   for pixels in getPixels(hitMap):
@@ -214,46 +240,33 @@ def main():
       tileNum = random.randint(1, 5)                                             #get random grass tile number (5 different tiles)
       grassTile = makePicture("images/grass_tiles" + str(tileNum) + ".jpg")   
       pasteToMap(grassMap, grassTile, x, y)                                      #build grassMap
-      pasteToMap(updateMap, grassTile, x, y)                                      #initialize update map
+      pasteToMap(updateMap, grassTile, x, y)                                     #initialize update map
   #generate rock obstacles
   for i in range(rockSpawnCount):
-    while collisionCheck(hitMap, rockTile, spawnX, spawnY, black):               #make sure obstacles do not overlap
-      spawnX = random.randrange(0, 768, 32)
-      spawnY = random.randrange(32, 512, 32)
-    pasteToMap(updateMap, rockTile, spawnX, spawnY)                              #add to updateMap
-    pasteToMap(hitMap, makeEmptyPicture(32, 32, black), spawnX, spawnY)          #add to hitMap
+    spawnRandom(updateMap, hitMap, rockTile, black)
   #generate tree obstacles
   for i in range(treeSpawnCount):
-    while collisionCheck(hitMap, treeTile, spawnX, spawnY, black): 
-      spawnX = random.randrange(0, 768, 32)
-      spawnY = random.randrange(32, 480, 32)
-    pasteToMap(updateMap, treeTile, spawnX, spawnY)
-    pasteToMap(hitMap, makeEmptyPicture(32, 64, black), spawnX, spawnY)
+    spawnRandom(updateMap, hitMap, treeTile, black)
     
   #spawn player
-  player = Player(random.randrange(0, 768, 32), random.randrange(32, 512, 32))   #creates Player object with random starting coordinates
-  while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #make sure player does not start on obstacle
-    player.x = random.randrange(0, 768, 32)
-    player.y = random.randrange(32, 512, 32)
-  player.move(updateMap, hitMap, grassMap, 0, 0)                                 #add player to maps
+  player = Player()
+  spawnRandomMoveable(updateMap, hitMap, player, red, white)
   
   #spawn 3 starting wolves
-  enemies = []                                                                                                #holds enemy objects (max 10)
+  enemies = []                                                        #holds enemy objects
   enemyCount = 0
   for i in range(3):
-    enemies.append(Wolf(random.randrange(0, 768, 32), random.randrange(32, 512, 32)))                         #creates wolf object with random starting coordinates
-    while not collisionCheck(hitMap, enemies[i].sprite, enemies[i].x, enemies[i].y, white):                   #make sure wolf is on empty space
-      enemies[i].x = random.randrange(0, 768, 32)
-      enemies[i].y = random.randrange(32, 512, 32)
-    enemies[i].move(updateMap, hitMap, grassMap, 0, 0)                                                        #add wolf to map
+    enemies.append(Wolf())                                            #adds new wolf to enemy list
+    spawnRandomMoveable(updateMap, hitMap, enemies[i], blue, white)
     enemyCount += 1
     
   #prepare axe UI graphics
   uiAxe = makePicture("images/axe_sprite1.jpg")
   noAxe = makeEmptyPicture(32, 32, black)
+  axesOnScreen = 0
   
   #--- MAIN GAME LOOP ---
-  turnCount = 0   #used to trigger in game events
+  turnCount = 1   #used to trigger in game events
   
   while true:
     #- 1. update UI and render graphics 
@@ -278,24 +291,28 @@ def main():
     
     #movement check. if move command in bounds and space is free, then allow move
     if userInput in ["n", "north"]:
-      if player.y - 32 >= 32 and collisionCheck(hitMap, player.sprite, player.x, player.y - 32, white):
-        player.move(updateMap, hitMap, grassMap, 0, -32)
+      if player.y - 32 >= 32 and not collisionCheck(hitMap, player.sprite, player.x, player.y - 32, black):
+        axesOnScreen = player.move(updateMap, hitMap, grassMap, 0, -32, axesOnScreen)
         successfulTurn = true
     elif userInput in ["s", "south"]:
-      if player.y + 32 <= 512 and collisionCheck(hitMap, player.sprite, player.x, player.y + 32, white):
-        player.move(updateMap, hitMap, grassMap, 0, 32)
+      if player.y + 32 <= 512 and not collisionCheck(hitMap, player.sprite, player.x, player.y + 32, black):
+        axesOnScreen = player.move(updateMap, hitMap, grassMap, 0, 32, axesOnScreen)
         successfulTurn = true   
     elif userInput in ["w", "west"]:
-      if player.x - 32 >= 0 and collisionCheck(hitMap, player.sprite, player.x - 32, player.y, white): 
-        player.move(updateMap, hitMap, grassMap, -32, 0)
+      if player.x - 32 >= 0 and not collisionCheck(hitMap, player.sprite, player.x - 32, player.y, black): 
+        axesOnScreen = player.move(updateMap, hitMap, grassMap, -32, 0, axesOnScreen)
         successfulTurn = true    
     elif userInput in ["e", "east"]:
-      if player.x + 32 <= 768 and collisionCheck(hitMap, player.sprite, player.x + 32, player.y, white):
-        player.move(updateMap, hitMap, grassMap, 32, 0)
+      if player.x + 32 <= 768 and not collisionCheck(hitMap, player.sprite, player.x + 32, player.y, black):
+        axesOnScreen = player.move(updateMap, hitMap, grassMap, 32, 0, axesOnScreen)
         successfulTurn = true 
     elif userInput in ["r", "rest"]:
         successfulTurn = true   
-        
+    
+    #check if player walked into enemy.
+    if collisionCheck(hitMap, player.sprite, player.x, player.y, blue):    #check if player eaten
+        break
+                    
     #axe action
     if userInput in ["a", "axe"] and player.axeCount > 0:
       #get direction in which to throw axe
@@ -317,7 +334,7 @@ def main():
     #- 4. execute enemies' turn
     if successfulTurn:
       for enemy in enemies:
-        if enemy.nameType == "wolf" and random.randint(0,4) == 0:            #wolves will wander 20% of the time
+        if enemy.nameType == "wolf" and random.randint(0,4) == 0:            #wolves will wander 20% of the time, bears don't
           huntX, huntY = enemy.wander(player, hitMap)
         else:
           huntX, huntY = enemy.hunt(player, hitMap)                          #get where enemy should move
@@ -325,9 +342,28 @@ def main():
       
       if collisionCheck(hitMap, player.sprite, player.x, player.y, blue):    #check if player eaten
         break
-    
+
     #- 5. execute game events
     if successfulTurn:
+      #every 3 turns, try spawn to something
+      if turnCount % 3 == 0:
+        choice = random.randint(1,100)
+        if choice > 29: #70% chance: spawn axe
+          if axesOnScreen + player.axeCount < 10: #no more than 10 axes allowed (on map + in inventory)
+            spawnRandom(updateMap, hitMap, uiAxe, green, white)
+            axesOnScreen += 1
+        elif choice > 4: #normally 25% chance: spawn wolf
+          if enemyCount < 10: #maximum 10 enemies at a time
+            enemies.append(Wolf())
+            spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
+            enemyCount += 1 
+        elif choice > 0: #normally 5% chance: spawn bear
+          if enemyCount < 10: #maximum 10 enemies at a time
+            enemies.append(Bear())  
+            spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
+            enemyCount += 1
+      
+      #increment turn
       turnCount += 1
   
   #--- GAME OVER ---
@@ -335,9 +371,9 @@ def main():
   drop(renderCoord, gameOverScreen)
   
       
-#---------------------------      
-#----- OTHER FUNCTIONS -----
-#---------------------------
+#-----------------------------      
+#----- MAPPING FUNCTIONS -----
+#-----------------------------
 #Pastes a tile or sprite to given map.
 #If chromaKey color is passed, will only copy pixels not the same as chromaKey.
 def pasteToMap(map, tile, mapX, mapY, chromaKey = 0):        #chromakey is an optional parameter that will default to 0
@@ -380,9 +416,39 @@ def collisionCheck(hitMap, object, objectX, objectY, targetColor):
       if getColor(pixel) == targetColor:
         return true
   return false
-  
-  
-  
+
+#spawns tiles onto maps at random location   
+def spawnRandom(updateMap, hitMap, tileImage, hitColor, chromaKey = 0):
+  #initialize random coordinates
+  spawnX = random.randrange(0, 800 - getWidth(tileImage), 32)
+  spawnY = random.randrange(32, 512 - getHeight(tileImage), 32)
+  #if obstructed, randomize coordinates again
+  while not collisionCheck(hitMap, tileImage, spawnX, spawnY, white):
+    spawnX = random.randrange(0, 800 - getWidth(tileImage), 32)
+    spawnY = random.randrange(32, 512 - getHeight(tileImage), 32)
+  #paste tiles to maps
+  pasteToMap(updateMap, tileImage, spawnX, spawnY, chromaKey)
+  pasteToMap(hitMap, makeEmptyPicture(getWidth(tileImage), getHeight(tileImage), hitColor), spawnX, spawnY)
+    
+    
+#spawns moveable sprites to random location 
+def spawnRandomMoveable(updateMap, hitMap, moveableSprite, hitColor, chromaKey = 0):
+  spriteImage = moveableSprite.sprite
+  #initialize random coordinates
+  spawnX = random.randrange(0, 800 - getWidth(spriteImage), 32)
+  spawnY = random.randrange(32, 512 - getHeight(spriteImage), 32)
+  #if obstructed, randomize coordinates again
+  while not collisionCheck(hitMap, spriteImage, spawnX, spawnY, white):
+    spawnX = random.randrange(0, 800 - getWidth(spriteImage), 32)
+    spawnY = random.randrange(32, 512 - getHeight(spriteImage), 32)
+  #assign coordinates to sprite object
+  moveableSprite.x = spawnX
+  moveableSprite.y = spawnY
+  #paste tiles to maps
+  pasteToMap(updateMap, spriteImage, spawnX, spawnY, chromaKey)
+  pasteToMap(hitMap, makeEmptyPicture(getWidth(spriteImage), getHeight(spriteImage), hitColor), spawnX, spawnY)
+    
+    
 #-------------------------  
 #----- FUNCTION CALL -----
 #-------------------------
