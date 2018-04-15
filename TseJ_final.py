@@ -10,15 +10,87 @@ import threading  #imported for running concurrent events
 currentDirectory = __file__[:-13] #removes this file's name from file path to get current directory
 setMediaFolder(currentDirectory)
 
-#------------------------
-#----- PLAYER CLASS -----
-#------------------------
-class Player(object):
+#-----------------------------
+#----- CHARACTER CLASSES -----
+#-----------------------------
+
+class Sprite(object):
   def __init__(self, intX = 0, intY = 0):
-    self.sprite = makePicture("images/player_sprite.jpg")
     self.x = intX  
     self.y = intY
+    self.sprite = ""
+    self.color = black
   
+  #moves sprite
+  def move(self, updateMap, hitMap, grassMap, xDelta, yDelta):
+    pasteToMap(hitMap, makeEmptyPicture(32, 32, white), self.x, self.y)
+    grassPatch(grassMap, updateMap, self.x, self.y) 
+    self.x += xDelta
+    self.y += yDelta
+    pasteToMap(hitMap, makeEmptyPicture(32, 32, self.color), self.x, self.y)
+    pasteToMap(updateMap, self.sprite, self.x, self.y, white) 
+  
+  #returns coordinate of somewhere closer to the prey, if not obstructed
+  def hunt(self, prey, hitMap):
+    coordX = 0
+    coordY = 0 
+    clearN = false
+    clearS = false
+    clearE = false
+    clearW = false
+    
+    #checks if cardinal directions are available
+    if self.x - 32 > 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
+      clearW = true
+    if self.x + 32 < 778 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
+      clearE = true
+    if self.y - 32 > 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
+      clearN = true
+    if self.y + 32 < 512 and (collisionCheck(hitMap, self.sprite, self.x, self.y + 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y + 32, red)):
+      clearS = true
+    
+    #if surrounded by obstacles, stay
+    if clearN == false and clearE == false and clearS == false and clearW == false:
+      return 0, 0
+    
+    #try moving closer
+    if self.x > prey.x and clearW:
+      return -32 , 0
+    elif self.x < prey.x and clearE:
+      return 32 , 0
+    elif self.y > prey.y and clearN:
+      return 0 , -32
+    elif self.y < prey.y and clearS:
+      return 0 , 32
+    else: #if not possible, go in random available direction
+      while true:
+        lottery = random.randint(1,4)
+        if lottery == 1 and clearW:
+          return -32 , 0
+        elif lottery == 2 and clearE:
+          return 32 , 0
+        elif lottery == 3 and clearN:
+          return 0 , -32
+        elif lottery == 4 and clearS:
+          return 0 , 32
+
+class Player(Sprite):
+  def __init__(self, intX = 0, intY = 0):
+    Sprite.__init__(self, intX, intY)
+    self.sprite = makePicture("images/player_sprite.jpg")
+    self.color = red
+    
+class Wolf(Sprite):
+  def __init__(self, intX = 0, intY = 0):
+    Sprite.__init__(self, intX, intY)
+    self.sprite = makePicture("images/wolf_sprite.jpg")
+    self.color = blue
+  
+class Bear(Sprite):
+  def __init__(self, intX = 0, intY = 0):
+    Sprite.__init__(self, intX, intY)
+    self.sprite = makePicture("images/bear_sprite.jpg")
+    self.color = blue
         
 #--------------------------
 #----- MAIN GAME LOOP -----
@@ -35,7 +107,7 @@ def main():
   
   #output loading screen
   loadingScreen = makePicture("images/loading_screen.jpg")
-  moveTo(renderCoord, 0 , 0)    
+  moveTo(renderCoord, 0 , 0)    #move to top left corner
   drop(renderCoord, loadingScreen)
    
   #generate random map
@@ -84,13 +156,24 @@ def main():
   while collisionCheck(hitMap, player.sprite, player.x, player.y, black):        #make sure player does not start on obstacle
     player.x = random.randrange(0, 778, 32)
     player.y = random.randrange(32, 512, 32)
-  pasteToMap(updateMap, player.sprite, player.x, player.y, white)                   #add player to updateMap   
-  pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)          #add player to hitMap 
+  player.move(updateMap, hitMap, grassMap, 0, 0)                                 #add player to maps
+  
+  #spawn 3 starting wolves
+  enemies = []                                                                                                #holds enemy objects (max 10)
+  enemyCount = 0
+  for i in range(3):
+    enemies.append(Wolf(random.randrange(0, 778, 32), random.randrange(32, 512, 32)))                            #creates wolf object with random starting coordinates
+    while not collisionCheck(hitMap, enemies[i].sprite, enemies[i].x, enemies[i].y, white):                   #make sure wolf is on empty space
+      enemies[i].x = random.randrange(0, 778, 32)
+      enemies[i].y = random.randrange(32, 512, 32)
+    enemies[i].move(updateMap, hitMap, grassMap, 0, 0)                                                        #add wolf to map
+    enemyCount += 1
   
   #--- MAIN GAME LOOP ---
+  turnCount = 0   #used to trigger in game events
+  
   while true:
     #- 1. render graphics   
-    moveTo(renderCoord, 0 , 0)                                                      #move to render full screen image
     drop(renderCoord, updateMap)                                                    #output to screen
     #repaint(hitMap)                                                                 #DEBUG: show hit map
     
@@ -102,46 +185,47 @@ def main():
         break
         
     #- 3. execute player's turn
-    #movement check. if move command in bounds and not collide with object, allow move.
-    #encounter check. check if player collided with enemy or item.
-    #update maps
+    successfulMove = false  #if player runs into obstacle, turn does not count
+    
+    #movement check. if move command in bounds and space is free, then allow move
     if userInput in ["n", "north"]:
-      if player.y - 32 >= 32 and not collisionCheck(hitMap, player.sprite, player.x, player.y - 32, black):
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)  #remove from hitMap
-        grassPatch(grassMap, updateMap, player.x, player.y)                      #remove from updateMap
-        player.y -= 32                                                           #move
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)    #add back into hitMap
-        pasteToMap(updateMap, player.sprite, player.x, player.y, white)          #add back into update Map
+      if player.y - 32 >= 32 and collisionCheck(hitMap, player.sprite, player.x, player.y - 32, white):
+        player.move(updateMap, hitMap, grassMap, 0, -32)
+        successfulMove = true
     elif userInput in ["s", "south"]:
-      if player.y + 32 <= 512 and not collisionCheck(hitMap, player.sprite, player.x, player.y + 32, black):
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
-        grassPatch(grassMap, updateMap, player.x, player.y) 
-        player.y += 32
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-        pasteToMap(updateMap, player.sprite, player.x, player.y, white)   
+      if player.y + 32 <= 512 and collisionCheck(hitMap, player.sprite, player.x, player.y + 32, white):
+        player.move(updateMap, hitMap, grassMap, 0, 32)
+        successfulMove = true   
     elif userInput in ["w", "west"]:
-      if player.x - 32 >= 0 and not collisionCheck(hitMap, player.sprite, player.x - 32, player.y, black): 
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
-        grassPatch(grassMap, updateMap, player.x, player.y) 
-        player.x -= 32
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-        pasteToMap(updateMap, player.sprite, player.x, player.y, white)   
+      if player.x - 32 >= 0 and collisionCheck(hitMap, player.sprite, player.x - 32, player.y, white): 
+        player.move(updateMap, hitMap, grassMap, -32, 0)
+        successfulMove = true    
     elif userInput in ["e", "east"]:
-      if player.x + 32 <= 778 and not collisionCheck(hitMap, player.sprite, player.x + 32, player.y, black):
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, white), player.x, player.y)
-        grassPatch(grassMap, updateMap, player.x, player.y) 
-        player.x += 32
-        pasteToMap(hitMap, makeEmptyPicture(32, 32, red), player.x, player.y)
-        pasteToMap(updateMap, player.sprite, player.x, player.y, white)   
-      
+      if player.x + 32 <= 778 and collisionCheck(hitMap, player.sprite, player.x + 32, player.y, white):
+        player.move(updateMap, hitMap, grassMap, 32, 0)
+        successfulMove = true 
+    elif userInput in ["r", "rest"]:
+        successfulMove = true   
+        
     #axe action
     
     
     #- 4. execute enemies' turn
+    for i in range(enemyCount):
+      huntX, huntY = enemies[i].hunt(player, hitMap)                #get where enemy should move
+      enemies[i].move(updateMap, hitMap, grassMap, huntX, huntY)    #move
+      
+    if collisionCheck(hitMap, player.sprite, player.x, player.y, blue):    #check if player eaten
+      break
     
     #- 5. execute game events
-    
-    
+    turnCount += 1
+  
+  #--- GAME OVER ---
+  gameOverScreen = makePicture("images/game_over.jpg")    
+  drop(renderCoord, gameOverScreen)
+  showInformation("Press OK to restart.")
+  
       
 #---------------------------      
 #----- OTHER FUNCTIONS -----
@@ -179,18 +263,18 @@ def grassPatch(grassMap, updateMap, x, y):
     tileX += 1
     tileY = 0
   
-#Checks if given object collides on hitMap and 
+#Checks for target color at object sized location at point (objectX, objectY)
 #return boolean true if collision detected, otherwise false
 #Does not alter hitMap
 #targetColor definitions:
-#black = obstacles, uninteractive
+#black = obstacles
 #red = player's character
-#blue = enemy character
+#blue = enemies
 #green = item
 def collisionCheck(hitMap, object, objectX, objectY, targetColor):
   for x in range(objectX, objectX + getWidth(object)):
     for y in range(objectY, objectY + getHeight(object)):
-      pixel = getPixel(hitMap, x, y)
+      pixel = getPixel(hitMap, x, y)  
       if getColor(pixel) == targetColor:
         return true
   return false
