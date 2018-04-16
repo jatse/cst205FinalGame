@@ -391,7 +391,10 @@ def main():
   #--- GAME OVER ---
   gameOverScreen = makePicture("images/game_over.jpg")    
   drop(renderCoord, gameOverScreen)
-  showInformation("Your score: " +  str(player.score))
+  try:
+    showInformation("Your score: " +  str(player.score))
+  except:
+        return
   return 
       
 #---------------------------      
