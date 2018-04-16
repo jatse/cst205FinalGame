@@ -1,18 +1,20 @@
 #Jason Tse
 #CST 205 Final Project
 
-#-------------------------------------------------
-#----- MODULE IMPORT AND SET MEDIA DIRECTORY -----
-#-------------------------------------------------
+#-----------------------------------------------------------
+#----- MODULE IMPORT, SET MEDIA DIRECTORY, SET GLOBALS -----
+#-----------------------------------------------------------
 import time       #imported for animations
 import random     #imported for random generation of game elements
+import threading  #for running concurrent bgm
 currentDirectory = __file__[:-13] #removes this file's name from file path to get current directory
 setMediaFolder(currentDirectory)
+bgm = makeSound("audio\IMetABear.wav")
+isLooping = true
 
 #-----------------------------
 #----- CHARACTER CLASSES -----
 #-----------------------------
-
 class Sprite(object):
   def __init__(self, intX = 0, intY = 0):
     self.x = intX  
@@ -293,8 +295,11 @@ def main():
     
     #- 2. get user input
     while true:                                                       #keep getting input until input matches valid commands    
-      userInput = requestString("What would you like to do?")
-      userInput.strip().lower()
+      try:
+        userInput = requestString("What would you like to do?")
+        userInput.strip().lower()
+      except:
+        return
       if userInput in ["n","s","e","w","north","south","east","west","r","rest","a","axe"]:    
         break
         
@@ -329,7 +334,10 @@ def main():
     if userInput in ["a", "axe"] and player.axeCount > 0:
       #get direction in which to throw axe
       #axe will go 5 units out
-      throwDirection = requestString("Which way will you throw?")
+      try:
+        throwDirection = requestString("Which way will you throw?")
+      except:
+        return
       if throwDirection in ["n", "north"]:
         enemyCount = player.throwAxe(enemies, enemyCount, updateMap, hitMap, grassMap, 0, -32, renderCoord)
         successfulTurn = true 
@@ -384,7 +392,7 @@ def main():
   gameOverScreen = makePicture("images/game_over.jpg")    
   drop(renderCoord, gameOverScreen)
   showInformation("Your score: " +  str(player.score))
-  
+  return 
       
 #---------------------------      
 #----- OTHER FUNCTIONS -----
@@ -484,9 +492,30 @@ def postScore(updateMap, score):
   time.sleep(1)
   play(higherSound)
   
-    
-    
+#plays bgm on loop
+def bgmLoop():
+  global isLooping 
+  global bgm
+  while(isLooping == true):
+    play(bgm)
+    time.sleep(36.5) #start next loop after bgm finishes
+
+ 
 #-------------------------  
 #----- FUNCTION CALL -----
 #-------------------------
+#start bgm
+bgmThread = threading.Thread(target = bgmLoop)
+bgmThread.start()
+#start game.
 main()
+#end bgm
+isLooping = false
+stopPlaying(bgm)
+try:
+  print "Ending game ...  please wait."
+  bgmThread.join() #prevent multiple threads on restart
+  print "Game ended successfully."
+except:
+  print "Game terminated."
+
