@@ -40,13 +40,13 @@ class Sprite(object):
     clearW = false
     
     #checks if cardinal directions are available
-    if self.x - 32 > 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
+    if self.x - 32 >= 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
       clearW = true
-    if self.x + 32 < 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
+    if self.x + 32 <= 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
       clearE = true
-    if self.y - 32 > 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
+    if self.y - 32 >= 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
       clearN = true
-    if self.y + 32 < 512 and (collisionCheck(hitMap, self.sprite, self.x, self.y + 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y + 32, red)):
+    if self.y + 32 <= 512 and (collisionCheck(hitMap, self.sprite, self.x, self.y + 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y + 32, red)):
       clearS = true
     
     #if surrounded by obstacles, stay
@@ -80,6 +80,7 @@ class Player(Sprite):
     self.sprite = makePicture("images/player_sprite.jpg")
     self.color = red
     self.axeCount = 5
+    self.score = 0
     
   #overridden to allow item pickup
   def move(self, updateMap, hitMap, grassMap, xDelta, yDelta, axesOnScreen):
@@ -132,8 +133,12 @@ class Player(Sprite):
                 if enemies[i].hp == 0:
                   if enemies[i].nameType == "wolf": 
                     play(makeSound("audio/wolf_ko.wav"))
+                    self.score += 300
+                    postScore(updateMap, self.score)
                   else:
                     play(makeSound("audio/bear_ko.wav"))
+                    self.score += 500
+                    postScore(updateMap, self.score)
                   pasteToMap(hitMap, makeEmptyPicture(32, 32, white), xDistance, yDistance)
                   grassPatch(grassMap, updateMap, xDistance, yDistance)
                   drop(renderCoord, updateMap)
@@ -172,13 +177,13 @@ class Wolf(Sprite):
     clearW = false
     
     #checks if cardinal directions are available
-    if self.x - 32 > 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
+    if self.x - 32 >= 0 and (collisionCheck(hitMap, self.sprite, self.x - 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x - 32, self.y, red)):
       clearW = true
-    if self.x + 32 < 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
+    if self.x + 32 <= 768 and (collisionCheck(hitMap, self.sprite, self.x + 32, self.y, white) or collisionCheck(hitMap, self.sprite, self.x + 32, self.y, red)):
       clearE = true
-    if self.y - 32 > 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
+    if self.y - 32 >= 32 and (collisionCheck(hitMap, self.sprite, self.x, self.y - 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y - 32, red)):
       clearN = true
-    if self.y + 32 < 512 and (collisionCheck(hitMap, self.sprite, self.x, self.y + 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y + 32, red)):
+    if self.y + 32 <= 512 and (collisionCheck(hitMap, self.sprite, self.x, self.y + 32, white) or collisionCheck(hitMap, self.sprite, self.x, self.y + 32, red)):
       clearS = true
       
     #if surrounded by obstacles, stay
@@ -266,14 +271,15 @@ def main():
     spawnRandomMoveable(updateMap, hitMap, enemies[i], blue, white)
     enemyCount += 1
     
-  #prepare axe UI graphics
+  #prepare UI graphics and variables
   uiAxe = makePicture("images/axe_sprite1.jpg")
   noAxe = makeEmptyPicture(32, 32, black)
   axesOnScreen = 0
-  
-  #--- MAIN GAME LOOP ---
+  score = 0
+  postScore(updateMap, player.score)
   turnCount = 1   #used to trigger in game events
   
+  #--- MAIN GAME LOOP ---
   while true:
     #- 1. update UI and render graphics 
     for i in range(10):                                               #refresh axe count UI
@@ -354,11 +360,11 @@ def main():
       #every 3 turns, try spawn to something
       if turnCount % 3 == 0:
         choice = random.randint(1,100)
-        if choice > 29: #70% chance: spawn axe
+        if choice > 39: #60% chance: spawn axe
           if axesOnScreen + player.axeCount < 10: #no more than 10 axes allowed (on map + in inventory)
             spawnRandom(updateMap, hitMap, uiAxe, green, white)
             axesOnScreen += 1
-        elif choice > 4: #normally 25% chance: spawn wolf
+        elif choice > 4: #normally 35% chance: spawn wolf
           if enemyCount < 10: #maximum 10 enemies at a time
             enemies.append(Wolf())
             spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
@@ -377,11 +383,12 @@ def main():
   #--- GAME OVER ---
   gameOverScreen = makePicture("images/game_over.jpg")    
   drop(renderCoord, gameOverScreen)
+  showInformation("Your score: " +  str(player.score))
   
       
-#-----------------------------      
-#----- MAPPING FUNCTIONS -----
-#-----------------------------
+#---------------------------      
+#----- OTHER FUNCTIONS -----
+#---------------------------
 #Pastes a tile or sprite to given map.
 #If chromaKey color is passed, will only copy pixels not the same as chromaKey.
 def pasteToMap(map, tile, mapX, mapY, chromaKey = 0):        #chromakey is an optional parameter that will default to 0
@@ -455,6 +462,28 @@ def spawnRandomMoveable(updateMap, hitMap, moveableSprite, hitColor, chromaKey =
   #paste tiles to maps
   pasteToMap(updateMap, spriteImage, spawnX, spawnY, chromaKey)
   pasteToMap(hitMap, makeEmptyPicture(getWidth(spriteImage), getHeight(spriteImage), hitColor), spawnX, spawnY)
+  
+#posts score to top of screen and plays sound
+#the higher the score, the faster the sound
+def postScore(updateMap, score):
+  #overwrite score area
+  pasteToMap(updateMap, makeEmptyPicture(352,32, black), 448, 0)
+  scoreStyle = makeStyle(mono, bold, 24)
+  addTextWithStyle(updateMap, 448, 23, str(score), scoreStyle, white)
+  #get sound information and augment
+  pointSound = makeSound("audio\point_tally.wav")
+  pointSamples = getNumSamples(pointSound)
+  pointSamplingRate = getSamplingRate(pointSound)
+  higherSound = makeEmptySound(pointSamples, score + 10000)
+  #resample sound
+  for i in range(pointSamples):
+    inputSample = getSampleValueAt(pointSound, i)
+    outputSample = getSampleObjectAt(higherSound, i)
+    setSampleValue(outputSample, inputSample)
+  #play sound. use delay to not overlap other sounds
+  time.sleep(1)
+  play(higherSound)
+  
     
     
 #-------------------------  
