@@ -162,6 +162,7 @@ class Player(Sprite):
           play(makeSound("audio/axe_fly.wav"))
       else:
         return enemyCount  #if obstacle encountered, end throw.
+    return enemyCount
     
 class Wolf(Sprite):
   def __init__(self, intX = 0, intY = 0):
@@ -281,6 +282,8 @@ def main():
   postScore(updateMap, player.score)
   turnCount = 1   #used to trigger in game events
   
+
+  
   #--- MAIN GAME LOOP ---
   while true:
     #- 1. update UI and render graphics 
@@ -394,7 +397,7 @@ def main():
   try:
     showInformation("Your score: " +  str(player.score))
   except:
-        return
+    return
   return 
       
 #---------------------------      
