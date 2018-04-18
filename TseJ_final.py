@@ -7,9 +7,10 @@
 import time       #imported for animations
 import random     #imported for random generation of game elements
 import threading  #for running concurrent bgm
+import os         #cross directory filepaths
 currentDirectory = __file__[:-13] #removes this file's name from file path to get current directory
 setMediaFolder(currentDirectory)
-bgm = makeSound("audio\IMetABear.wav")
+bgm = makeSound(os.path.join("audio", "IMetABear.wav"))
 isLooping = true
 
 #-----------------------------
@@ -79,7 +80,7 @@ class Sprite(object):
 class Player(Sprite):
   def __init__(self, intX = 0, intY = 0):
     Sprite.__init__(self, intX, intY)
-    self.sprite = makePicture("images/player_sprite.jpg")
+    self.sprite = makePicture(os.path.join("images", "player_sprite.jpg"))
     self.color = red
     self.axeCount = 5
     self.score = 0
@@ -109,7 +110,7 @@ class Player(Sprite):
     #use axe
     self.axeCount -= 1
     currentAxeSprite = 1
-    play(makeSound("audio/axe_throw.wav"))
+    play(makeSound(os.path.join("audio", "axe_throw.wav")))
     #throw up to 5 spaces
     for i in range(5):
       xDistance = self.x + (xDelta * (i + 1))
@@ -121,7 +122,7 @@ class Player(Sprite):
       if not collisionCheck(hitMap, self.sprite, xDistance, yDistance, black):
         #then paste axe there and render. if item there, skip render and check.
         if not collisionCheck(hitMap, self.sprite, xDistance, yDistance, green):
-          pasteToMap(updateMap, makePicture("images/axe_sprite" + str(currentAxeSprite) + ".jpg"), xDistance, yDistance, white)
+          pasteToMap(updateMap, makePicture(os.path.join("images/axe_sprite" + str(currentAxeSprite)+ ".jpg")), xDistance, yDistance, white)
           drop(renderCoord, updateMap)
           time.sleep(.5)  #slow down for visible animation
           #check if enemy was hit
@@ -134,11 +135,11 @@ class Player(Sprite):
                 #wipe enemy from maps if no hp
                 if enemies[i].hp == 0:
                   if enemies[i].nameType == "wolf": 
-                    play(makeSound("audio/wolf_ko.wav"))
+                    play(makeSound(os.path.join("audio", "wolf_ko.wav")))
                     self.score += 300
                     postScore(updateMap, self.score)
                   else:
-                    play(makeSound("audio/bear_ko.wav"))
+                    play(makeSound(os.path.join("audio", "bear_ko.wav")))
                     self.score += 500
                     postScore(updateMap, self.score)
                   pasteToMap(hitMap, makeEmptyPicture(32, 32, white), xDistance, yDistance)
@@ -149,7 +150,7 @@ class Player(Sprite):
                   return enemyCount - 1;
                 #else enemy still has hp, no wipe but end throw
                 else:
-                  play(makeSound("audio/bear_hit.wav"))
+                  play(makeSound(os.path.join("audio", "bear_hit.wav")))
                   return enemyCount
           else: #if no enemy was hit, remove axe
             grassPatch(grassMap, updateMap, xDistance, yDistance)
@@ -159,7 +160,7 @@ class Player(Sprite):
             currentAxeSprite = 1
           else:
             currentAxeSprite += 1
-          play(makeSound("audio/axe_fly.wav"))
+          play(makeSound(os.path.join("audio", "axe_fly.wav")))
       else:
         return enemyCount  #if obstacle encountered, end throw.
     return enemyCount
@@ -167,7 +168,7 @@ class Player(Sprite):
 class Wolf(Sprite):
   def __init__(self, intX = 0, intY = 0):
     Sprite.__init__(self, intX, intY)
-    self.sprite = makePicture("images/wolf_sprite.jpg")
+    self.sprite = makePicture(os.path.join("images", "wolf_sprite.jpg"))
     self.nameType = "wolf"
     self.color = blue
     self.hp = 1
@@ -208,7 +209,7 @@ class Wolf(Sprite):
 class Bear(Sprite):
   def __init__(self, intX = 0, intY = 0):
     Sprite.__init__(self, intX, intY)
-    self.sprite = makePicture("images/bear_sprite.jpg")
+    self.sprite = makePicture(os.path.join("images", "bear_sprite.jpg"))
     self.nameType = "bear"
     self.color = blue
     self.hp = 3
@@ -227,7 +228,7 @@ def main():
   renderCoord.hide()          #hide turtle icon
   
   #output loading screen
-  loadingScreen = makePicture("images/loading_screen.jpg")
+  loadingScreen = makePicture(os.path.join("images", "loading_screen.jpg"))
   moveTo(renderCoord, 0 , 0)    #move to top left corner
   drop(renderCoord, loadingScreen)
    
@@ -235,13 +236,13 @@ def main():
   #map is actively 800 x 512 broken into 25 x 16 cells of 32 pixel width squares
   #map will be randomized at start of every game
   grassMap = makeEmptyPicture(800, 600, black)   #underlying map of grass.
-  updateMap = makePicture("images/map-help.jpg") #the map to be displayed
+  updateMap = makePicture(os.path.join("images", "map-help.jpg")) #the map to be displayed
   hitMap = makeEmptyPicture(800, 600, white)     #map used for collision detections
   
   rockSpawnCount = 6                             #determines number of rocks spawned on map
-  rockTile = makePicture("images/rock_tile.jpg")
+  rockTile = makePicture(os.path.join("images", "rock_tile.jpg"))
   treeSpawnCount = 13                             #determines number of trees spawned on map
-  treeTile = makePicture("images/tree_tile.jpg")
+  treeTile = makePicture(os.path.join("images", "tree_tile.jpg"))
   
   #initialize hitMap by framing active area with obstacles
   for pixels in getPixels(hitMap):
@@ -252,7 +253,7 @@ def main():
   for x in range(0, 800, 32):
     for y in range(32, 544, 32):
       tileNum = random.randint(1, 5)                                             #get random grass tile number (5 different tiles)
-      grassTile = makePicture("images/grass_tiles" + str(tileNum) + ".jpg")   
+      grassTile = makePicture(os.path.join("images", "grass_tiles" + str(tileNum) + ".jpg"))   
       pasteToMap(grassMap, grassTile, x, y)                                      #build grassMap
       pasteToMap(updateMap, grassTile, x, y)                                     #initialize update map
   #generate rock obstacles
@@ -275,7 +276,7 @@ def main():
     enemyCount += 1
     
   #prepare UI graphics and variables
-  uiAxe = makePicture("images/axe_sprite1.jpg")
+  uiAxe = makePicture(os.path.join("images", "axe_sprite1.jpg"))
   noAxe = makeEmptyPicture(32, 32, black)
   axesOnScreen = 0
   score = 0
@@ -379,20 +380,20 @@ def main():
           if enemyCount < 10: #maximum 10 enemies at a time
             enemies.append(Wolf())
             spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
-            play(makeSound("audio/wolf_spawn.wav"))
+            play(makeSound(os.path.join("audio", "wolf_spawn.wav")))
             enemyCount += 1 
         elif choice > 0: #normally 5% chance: spawn bear
           if enemyCount < 10: #maximum 10 enemies at a time
             enemies.append(Bear())  
             spawnRandomMoveable(updateMap, hitMap, enemies[len(enemies)-1], blue, white)
-            play(makeSound("audio/bear_spawn.wav"))
+            play(makeSound(os.path.join("audio", "bear_spawn.wav")))
             enemyCount += 1
       
       #increment turn
       turnCount += 1
   
   #--- GAME OVER ---
-  gameOverScreen = makePicture("images/game_over.jpg")    
+  gameOverScreen = makePicture(os.path.join("images", "game_over.jpg"))    
   drop(renderCoord, gameOverScreen)
   try:
     showInformation("Your score: " +  str(player.score))
@@ -485,7 +486,7 @@ def postScore(updateMap, score):
   scoreStyle = makeStyle(mono, bold, 24)
   addTextWithStyle(updateMap, 448, 23, str(score), scoreStyle, white)
   #get sound information and augment
-  pointSound = makeSound("audio\point_tally.wav")
+  pointSound = makeSound(os.path.join("audio", "point_tally.wav"))
   pointSamples = getNumSamples(pointSound)
   pointSamplingRate = getSamplingRate(pointSound)
   higherSound = makeEmptySound(pointSamples, score + 10000)
